@@ -1,0 +1,20 @@
+# Node
+node_modules/
+npm-debug.log*
+
+# Capacitor / Android build
+android/.gradle/
+android/build/
+android/app/build/
+android/capacitor-cordova-android-plugins/build/
+android/local.properties
+.gradle/
+
+# Signing secrets — never commit these
+*.keystore
+*.jks
+keystore.properties
+
+# OS / editor
+.DS_Store
+*~

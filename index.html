@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#241B3D">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Lull">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<title>Lull</title>
+<style>
+  :root{--ember:#F6A75A;--text:#F3E9DD;--muted:#B09C8D;--surface:rgba(28,19,46,.55)}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    display:flex;flex-direction:column;align-items:center;min-height:100dvh;position:relative;overflow:hidden;
+    padding:env(safe-area-inset-top) 22px env(safe-area-inset-bottom);user-select:none;background:#0E0A1C;
+    transition:filter .8s ease}
+
+  /* ---------- Evening Glow scene ---------- */
+  .scene{position:fixed;inset:0;z-index:0;transition:opacity 1.2s ease}
+  .sky{position:absolute;inset:0;background:linear-gradient(180deg,
+      #241B3D 0%,#3A2349 26%,#6E3357 46%,#B14C49 60%,#DD6F38 68%,#F2A047 75%,#F8B855 79%)}
+  .fell{position:absolute;left:0;right:0;width:100%}
+  .fell.back{bottom:21%;opacity:.85}
+  .fell.front{bottom:21%}
+  .water{position:absolute;left:0;right:0;bottom:0;height:21%;overflow:hidden;
+    background:linear-gradient(180deg,#C56A38 0%,#7A3B4A 16%,#34203F 46%,#150E26 100%)}
+  .shimmer{position:absolute;left:50%;top:0;bottom:0;width:60px;transform:translateX(-50%);
+    background:linear-gradient(180deg,rgba(255,222,150,.75),rgba(246,167,90,.12) 60%,transparent);
+    filter:blur(7px);animation:shimmer 5.5s ease-in-out infinite}
+  @keyframes shimmer{0%,100%{opacity:.55;width:54px}50%{opacity:.9;width:74px}}
+
+  /* ---------- Focus mode: full-screen home background + hint ---------- */
+  .focus-hint{position:fixed;left:0;right:0;bottom:46px;text-align:center;z-index:9;
+    font-size:13px;letter-spacing:.06em;color:rgba(255,255,255,.85);text-shadow:0 1px 8px rgba(0,0,0,.6);
+    opacity:0;transition:opacity .6s ease;pointer-events:none}
+  body.focus .focus-hint{opacity:.9}
+  body.focus.hidehint .focus-hint{opacity:0}
+
+  /* ---------- Orb / sun / play ---------- */
+  .stage{flex:1;display:flex;justify-content:center;width:100%;position:relative;z-index:2;
+    pointer-events:none;align-items:center;padding-top:0;transition:padding-top .9s ease}
+  .orb-wrap{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:min(46vw,180px);aspect-ratio:1;pointer-events:auto;z-index:2}
+  .orb{position:absolute;inset:0;border-radius:50%;cursor:pointer;
+    background:radial-gradient(circle at 50% 45%,#FFE9BE 0%,#FBC264 42%,#F39B3C 72%,#E07A2E 100%);
+    box-shadow:0 0 70px 18px rgba(251,190,98,.45),0 0 160px 60px rgba(240,120,50,.22);
+    display:flex;align-items:center;justify-content:center;transition:background 1s ease,box-shadow 1.2s ease}
+  .orb .glyph{width:0;height:0;border-left:26px solid rgba(60,30,10,.78);
+    border-top:17px solid transparent;border-bottom:17px solid transparent;margin-left:7px}
+  .orb .bars{display:none;gap:8px}
+  .orb .bars span{width:6px;height:30px;border-radius:4px;background:rgba(60,30,10,.78)}
+  body.playing .orb{animation:breathe 7s ease-in-out infinite}
+  body.playing .orb .glyph{display:none}
+  body.playing .orb .bars{display:flex}
+  @keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+  .orb-hint{position:absolute;left:0;right:0;bottom:-32px;text-align:center;font-size:13px;
+    color:rgba(255,255,255,.8);letter-spacing:.04em;text-shadow:0 1px 6px rgba(0,0,0,.5);transition:opacity .4s ease}
+  body.playing .orb-hint{opacity:0}
+
+  /* ---------- chrome ---------- */
+  header{padding-top:30px;text-align:center;z-index:3;position:relative}
+  .mark{font-size:13px;letter-spacing:.46em;text-transform:uppercase;font-weight:600;padding-left:.46em;
+    color:rgba(255,255,255,.9);text-shadow:0 1px 10px rgba(0,0,0,.45)}
+
+  .panel{width:100%;max-width:440px;z-index:3;position:relative;padding-bottom:26px}
+  .panel::before{content:"";position:absolute;left:-40px;right:-40px;bottom:-30px;top:-50px;z-index:-1;
+    background:linear-gradient(180deg,transparent,rgba(8,6,16,.55) 38%,rgba(8,6,16,.85));pointer-events:none}
+  .row-label{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);margin:0 2px 11px;font-weight:600}
+
+  .sounds{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:24px}
+  .sound{background:var(--surface);border:1px solid rgba(255,255,255,.08);color:var(--muted);border-radius:15px;
+    padding:14px 4px 11px;font-size:13px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;
+    align-items:center;gap:7px;backdrop-filter:blur(8px);transition:all .25s ease}
+  .sound .ic{font-size:18px;line-height:1}
+  .sound.active{border-color:var(--ember);color:var(--text);background:linear-gradient(180deg,rgba(246,167,90,.2),rgba(246,167,90,.05))}
+
+  .vol{display:flex;align-items:center;gap:14px;margin-bottom:24px}
+  .vol .ic{font-size:16px;color:var(--muted);width:18px;text-align:center}
+  input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:6px;border-radius:99px;background:rgba(255,255,255,.14);outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:25px;height:25px;border-radius:50%;background:var(--ember);border:4px solid rgba(14,10,28,.9);box-shadow:0 0 14px rgba(246,167,90,.55);cursor:pointer}
+  input[type=range]::-moz-range-thumb{width:21px;height:21px;border-radius:50%;background:var(--ember);border:4px solid rgba(14,10,28,.9);box-shadow:0 0 14px rgba(246,167,90,.55);cursor:pointer}
+
+  .timers{display:flex;gap:8px}
+  .timer{flex:1;background:var(--surface);border:1px solid rgba(255,255,255,.08);color:var(--muted);border-radius:13px;
+    padding:11px 2px;font-size:13px;font-weight:600;cursor:pointer;text-align:center;backdrop-filter:blur(8px);transition:all .25s ease}
+  .timer.active{border-color:var(--ember);color:var(--text);background:rgba(246,167,90,.12)}
+  .timer .left{display:block;font-size:11px;color:var(--ember);margin-top:3px;font-variant-numeric:tabular-nums}
+
+  .corner{position:fixed;top:calc(env(safe-area-inset-top) + 18px);width:42px;height:42px;border-radius:50%;
+    border:1px solid rgba(255,255,255,.14);background:rgba(20,14,34,.5);backdrop-filter:blur(8px);color:rgba(255,255,255,.78);
+    font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:5;
+    transition:opacity .4s ease,color .3s ease,border-color .3s ease}
+  .glowbtn{left:20px}
+  .glowbtn.on{color:#BFD6FF;border-color:#BFD6FF}
+  .moon{right:20px}
+
+  body.focus .panel,body.focus header,body.focus .corner,body.focus .orb-hint,body.focus .stage{opacity:0;pointer-events:none}
+  body.focus .scene{pointer-events:auto;cursor:pointer}
+  body.focus .orb-wrap{pointer-events:none}
+  body.focus .shimmer{display:none}
+  body.dim{filter:brightness(.1) saturate(.8)}
+  body.dim .panel,body.dim header,body.dim .corner,body.dim .orb-hint{opacity:0;pointer-events:none}
+  body.dim .stage{pointer-events:auto;cursor:pointer}
+  .dim-tip{position:fixed;left:0;right:0;bottom:38px;text-align:center;font-size:12px;color:var(--muted);
+    opacity:0;pointer-events:none;transition:opacity .4s ease;z-index:6}
+  body.dim .dim-tip{opacity:.5;transition-delay:.5s}
+
+  /* ---------- Landscape: two columns so the orb and controls don't collide ---------- */
+  @media (orientation: landscape){
+    header{padding-top:14px}
+    .orb-wrap{left:27%;width:min(40vh,190px)}
+    .orb-hint{bottom:-28px}
+    .panel{position:fixed;top:50%;right:3.5%;left:auto;transform:translateY(-50%);
+      width:52%;max-width:620px;padding:0;margin:0}
+    .panel::before{display:none}
+    .row-label{margin-bottom:8px}
+    .sounds{margin-bottom:12px}
+    .vol{margin-bottom:12px}
+    /* focus mode hides controls anyway; nothing to change there */
+  }
+
+  /* ---------- dB meter ---------- */
+  .dbbtn{width:100%;margin-top:18px;padding:11px;border-radius:13px;background:transparent;
+    border:1px solid rgba(255,255,255,.14);color:var(--muted);font-size:12.5px;font-weight:600;
+    letter-spacing:.04em;transition:background .2s,color .2s}
+  .dbbtn:hover{background:var(--surface);color:var(--text)}
+  #meter{position:fixed;inset:0;z-index:20;background:rgba(9,7,18,.92);
+    -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:24px;text-align:center;opacity:0;pointer-events:none;transition:opacity .3s ease}
+  body.metering #meter{opacity:1;pointer-events:auto}
+  #meter .title{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:16px}
+  #meter .read{font-size:82px;font-weight:300;line-height:1;color:var(--text);font-variant-numeric:tabular-nums}
+  #meter .read .u{font-size:22px;color:var(--muted);margin-left:7px;font-weight:400}
+  #meter .approx{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);opacity:.7;margin-top:8px}
+  #meter .zone{font-size:15px;font-weight:600;margin-top:16px;min-height:20px}
+  #meter .bar{position:relative;width:min(86vw,420px);height:11px;border-radius:7px;margin-top:20px;
+    background:linear-gradient(90deg,#5FCB95 0%,#5FCB95 41.7%,#E6B14E 41.7%,#E6B14E 58.3%,#E0705C 58.3%,#E0705C 100%);opacity:.85}
+  #meter .bar .target{position:absolute;top:-4px;left:41.7%;width:2px;height:19px;background:rgba(255,255,255,.65);transform:translateX(-50%)}
+  #meter .bar .mk{position:absolute;top:-6px;left:0;width:5px;height:23px;border-radius:3px;background:#fff;
+    box-shadow:0 0 10px rgba(0,0,0,.6);transform:translateX(-50%);transition:left .1s linear}
+  #meter .scale{display:flex;justify-content:space-between;width:min(86vw,420px);margin-top:7px;font-size:10px;letter-spacing:.04em;color:var(--muted)}
+  #meter .cal{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:22px;color:var(--muted);font-size:12px;letter-spacing:.04em}
+  #meter .cal button{width:34px;height:34px;border-radius:50%;background:var(--surface);border:1px solid rgba(255,255,255,.12);color:var(--text);font-size:18px;line-height:1}
+  #meter .cal #mCal{min-width:42px;font-variant-numeric:tabular-nums}
+  #meter .note{font-size:11.5px;line-height:1.55;color:var(--muted);max-width:380px;margin-top:22px}
+  #meter .err{color:#E6B14E;font-size:12.5px;line-height:1.5;max-width:340px;margin-top:14px;min-height:0}
+  #meter .mbtns{margin-top:24px}
+  #meter .mbtns button{padding:11px 26px;border-radius:14px;background:var(--surface);border:1px solid rgba(255,255,255,.12);color:var(--text);font-size:14px;font-weight:600}
+</style>
+</head>
+<body>
+  <!-- Rain sound: "Heavy Rain" by D W (freesound.org/people/D%20W/sounds/136971/), CC BY 3.0. See CREDITS.md. -->
+  <div class="scene">
+    <div class="sky"></div>
+    <svg class="fell back" viewBox="0 0 1440 200" preserveAspectRatio="none" height="160">
+      <path d="M0,200 L0,118 C160,92 300,150 470,110 C640,70 760,128 940,96 C1120,64 1280,120 1440,98 L1440,200 Z" fill="#2A1B38"/>
+    </svg>
+    <svg class="fell front" viewBox="0 0 1440 200" preserveAspectRatio="none" height="150">
+      <path d="M0,200 L0,150 C180,120 340,168 520,140 C700,112 820,154 1010,128 C1200,102 1300,150 1440,134 L1440,200 Z" fill="#160F22"/>
+    </svg>
+    <div class="water"><div class="shimmer"></div></div>
+  </div>
+
+  <button class="corner glowbtn" id="glowbtn" aria-label="Open focus mode">✦</button>
+  <button class="corner moon" id="moon" aria-label="Dim screen">☾</button>
+
+  <header><div class="mark">Lull</div></header>
+
+  <div class="stage" id="stage">
+    <div class="orb-wrap">
+      <div class="orb" id="orb" role="button" aria-label="Play or pause">
+        <div class="glyph"></div>
+        <div class="bars"><span></span><span></span><span></span></div>
+      </div>
+      <div class="orb-hint">tap to play</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="row-label">Sound</div>
+    <div class="sounds" id="sounds">
+      <button class="sound active" data-type="brown"><span class="ic">▦</span>Brown</button>
+      <button class="sound" data-type="pink"><span class="ic">❋</span>Pink</button>
+      <button class="sound" data-type="white"><span class="ic">⬡</span>White</button>
+      <button class="sound" data-type="ocean"><span class="ic">≈</span>Ocean</button>
+      <button class="sound" data-type="snoo"><span class="ic">✸</span>SNOO</button>
+      <button class="sound" data-type="heartbeat"><span class="ic">♥</span>Heartbeat</button>
+      <button class="sound" data-type="rain"><span class="ic">☂</span>Rain</button>
+      <button class="sound" data-type="fan"><span class="ic">✺</span>Fan</button>
+    </div>
+    <div class="row-label">Sleep timer</div>
+    <div class="timers" id="timers">
+      <button class="timer active" data-min="0">Off</button>
+      <button class="timer" data-min="15">15<span class="left" data-slot="15"></span></button>
+      <button class="timer" data-min="30">30<span class="left" data-slot="30"></span></button>
+      <button class="timer" data-min="45">45<span class="left" data-slot="45"></span></button>
+      <button class="timer" data-min="60">60<span class="left" data-slot="60"></span></button>
+    </div>
+    <button class="dbbtn" id="dbbtn">Check sound level&nbsp;·&nbsp;≈dB</button>
+  </div>
+
+  <div class="focus-hint">tap to exit</div>
+  <div class="dim-tip">tap anywhere to wake</div>
+
+  <div id="meter">
+    <div class="title">Sound level</div>
+    <div class="read"><span id="mNum">–</span><span class="u">dB</span></div>
+    <div class="approx">approximate</div>
+    <div class="zone" id="mZone">listening…</div>
+    <div class="bar"><div class="target"></div><div class="mk" id="mMk"></div></div>
+    <div class="scale"><span>30</span><span>50 · target</span><span>70+</span></div>
+    <div class="cal">calibrate <button id="mCalDn" aria-label="lower">–</button><span id="mCal">+90</span><button id="mCalUp" aria-label="raise">+</button></div>
+    <div class="note">Phone mics aren\'t calibrated, so treat this as a guide, not a certified reading. For precision use a dedicated meter (e.g. NIOSH SLM). And since this tablet is the sound source, a true crib level is best measured from the cot with a second device.</div>
+    <div class="err" id="mErr"></div>
+    <div class="mbtns"><button id="mClose">Close</button></div>
+  </div>
+
+<script>
+(function(){
+  let playing=false,type='brown';
+  let timerId=null,timerEnd=0,tickId=null,fadeTimer=null;
+
+  /* ---------- audio: gapless playback via MSE ----------
+     Append a short Opus loop into ONE continuous timeline and evict behind the
+     playhead, so there is no per-loop re-seek and therefore no recurring seam.
+     It stays a real media element, so the Android lock-screen widget still works.
+     Where MSE/Opus is unavailable, fall back to a plain looping element. */
+  const labels={brown:'Brown noise',pink:'Pink noise',white:'White noise',ocean:'Ocean',snoo:'SNOO',heartbeat:'Heartbeat',rain:'Rain',fan:'Fan'};
+  const SOUNDS={brown:'brown.webm',pink:'pink.webm',white:'white.webm',ocean:'ocean.webm',snoo:'snoo.webm',heartbeat:'heart.webm',rain:'rain.webm',fan:'fan.webm'};
+  const MIME='audio/webm; codecs="opus"';
+  const canMSE=(typeof MediaSource!=='undefined')&&(function(){try{return MediaSource.isTypeSupported(MIME);}catch(e){return false;}})();
+  const AHEAD=90, BEHIND=20;                 // seconds kept ahead of / behind the playhead
+  const audioEl=new Audio(); audioEl.preload='auto';
+
+  const bufCache={};                         // type -> encoded loop (ArrayBuffer)
+  let ms=null, sb=null, srcType=null, token=0, ops=[], mseBroken=false;
+  function fetchBuf(t){ return bufCache[t]?Promise.resolve(bufCache[t]):fetch(SOUNDS[t]).then(function(r){return r.arrayBuffer();}).then(function(b){bufCache[t]=b;return b;}); }
+  function pump(){ if(!sb||sb.updating||!ops.length)return; var op=ops.shift(); try{op();}catch(e){ try{evict();}catch(_){} } }
+  function enqueue(op){ ops.push(op); pump(); }
+  function appendOne(){ var b=bufCache[srcType]; if(b&&sb)enqueue(function(){ sb.appendBuffer(b); }); }
+  function topUp(){ if(!sb||!srcType||!bufCache[srcType])return; var r=sb.buffered, end=r.length?r.end(r.length-1):0; if(end<(audioEl.currentTime||0)+AHEAD)appendOne(); }
+  function evict(){ if(!sb)return; var cur=audioEl.currentTime||0, safe=cur-BEHIND, r=sb.buffered; if(safe>1&&r.length&&r.start(0)<safe-1)enqueue(function(){ sb.remove(0,safe); }); }
+  function resetSource(){ token++; ops=[]; try{ if(ms&&ms.readyState==='open'&&ms.endOfStream)ms.endOfStream(); }catch(e){} ms=null; sb=null; srcType=null; }
+  function fallback(t,autoplay){ mseBroken=true; resetSource(); audioEl.loop=true; audioEl.src=SOUNDS[t]; if(autoplay){var p=audioEl.play();if(p&&p.catch)p.catch(function(){});} }
+  function buildMSE(t,autoplay){
+    resetSource(); var my=token; srcType=t;
+    ms=new MediaSource(); var url=URL.createObjectURL(ms); audioEl.loop=false; audioEl.src=url;
+    ms.addEventListener('sourceopen',function(){
+      if(my!==token)return; try{URL.revokeObjectURL(url);}catch(e){}
+      try{ sb=ms.addSourceBuffer(MIME); sb.mode='sequence'; }catch(e){ fallback(t,autoplay); return; }
+      sb.addEventListener('updateend',function(){ if(my!==token||!sb)return; pump(); if(!ops.length){ topUp(); evict(); } });
+      fetchBuf(t).then(function(){ if(my!==token)return; appendOne(); if(autoplay){var p=audioEl.play();if(p&&p.catch)p.catch(function(){});} }).catch(function(){ fallback(t,autoplay); });
+    },{once:true});
+  }
+  function playType(t,autoplay){ if(canMSE&&!mseBroken)buildMSE(t,autoplay); else fallback(t,autoplay); }
+  audioEl.addEventListener('timeupdate',function(){ if(sb&&!sb.updating&&!ops.length){ topUp(); evict(); } });
+  audioEl.addEventListener('waiting',function(){ if(sb&&!sb.updating&&!ops.length)topUp(); });
+  setInterval(function(){ if(playing&&sb&&!sb.updating&&!ops.length){ topUp(); evict(); } },3000);
+  fetchBuf(type).catch(function(){});        // warm the default sound for an instant first play
+
+  /* ---------- native (Capacitor) foreground-service bridge ----------
+     On Android the WebView's W3C MediaSession does not surface a system media
+     notification, and a backgrounded WebView can be killed overnight. The native
+     LullAudio plugin runs a mediaPlayback foreground service that keeps playback
+     alive and shows lock-screen controls; we forward its transport actions back
+     into the same start/stop/skip the on-screen orb uses. No-op on the web. */
+  const Cap=window.Capacitor;
+  const LA=(Cap&&Cap.isNativePlatform&&Cap.isNativePlatform()&&Cap.Plugins)?Cap.Plugins.LullAudio:null;
+  function nativeStart(){ if(LA)LA.start({title:labels[type]||'Lull',playing:true}); }
+  function nativeUpdate(){ if(LA)LA.update({title:labels[type]||'Lull',playing:playing}); }
+  function nativeStop(){ if(LA)LA.stop(); }
+  if(LA){
+    LA.addListener('transport',function(ev){
+      var a=ev&&ev.action;
+      if(a==='play'){ if(!playing)start(); }
+      else if(a==='pause'){ if(playing)stop(false); }
+      else if(a==='next')skip(1);
+      else if(a==='prev')skip(-1);
+    });
+  }
+
+  function setSession(state){
+    if(!('mediaSession' in navigator))return;
+    try{
+      navigator.mediaSession.metadata=new MediaMetadata({title:labels[type]||'Lull',artist:'Lull',album:'Lull',
+        artwork:[{src:'icon-192.png',sizes:'192x192',type:'image/png'},{src:'icon-512.png',sizes:'512x512',type:'image/png'}]});
+      navigator.mediaSession.playbackState=state;
+    }catch(e){}
+  }
+  function start(){
+    if(fadeTimer){clearInterval(fadeTimer);fadeTimer=null;}
+    audioEl.volume=1;
+    if(canMSE&&!mseBroken&&ms&&srcType===type){ var p=audioEl.play(); if(p&&p.catch)p.catch(function(){}); }
+    else playType(type,true);
+    playing=true;document.body.classList.add('playing');setSession('playing');nativeStart();
+  }
+  function stop(fade){
+    if(!playing)return;
+    playing=false;document.body.classList.remove('playing');setSession('paused');clearTimer();
+    if(fade){
+      nativeStop();                              // timer end: dismiss the media notification
+      let v=audioEl.volume; if(fadeTimer)clearInterval(fadeTimer);
+      fadeTimer=setInterval(()=>{v-=0.02; if(v<=0){clearInterval(fadeTimer);fadeTimer=null;audioEl.pause();audioEl.volume=1;} else audioEl.volume=Math.max(0,v);},80);
+    } else { nativeUpdate(); audioEl.pause(); }   // manual pause: keep a resumable paused notification
+  }
+  function toggle(){playing?stop(false):start();}
+
+  const ORDER=['brown','pink','white','ocean','snoo','heartbeat','rain','fan'];
+  function setType(t){
+    type=t;
+    document.querySelectorAll('.sound').forEach(x=>x.classList.toggle('active',x.dataset.type===t));
+    if(playing) playType(t,true);
+    setSession(playing?'playing':'paused');
+    if(playing) nativeUpdate();                  // refresh notification title to the new sound
+  }
+  function skip(d){const i=ORDER.indexOf(type);setType(ORDER[(i+d+ORDER.length)%ORDER.length]);}
+
+  function setAH(a,fn){if('mediaSession' in navigator){try{navigator.mediaSession.setActionHandler(a,fn);}catch(e){}}}
+  setAH('play',()=>{if(!playing)start();});
+  setAH('pause',()=>{if(playing)stop(false);});
+  setAH('nexttrack',()=>skip(1));
+  setAH('previoustrack',()=>skip(-1));
+
+  function clearTimer(){if(timerId)clearTimeout(timerId);if(tickId)clearInterval(tickId);timerId=tickId=null;timerEnd=0;document.querySelectorAll('.left').forEach(el=>el.textContent='');}
+  function setTimer(min){clearTimer();document.querySelectorAll('.timer').forEach(t=>t.classList.toggle('active',+t.dataset.min===min));
+    if(min===0)return;if(!playing)start();timerEnd=Date.now()+min*60000;timerId=setTimeout(()=>{stop(true);resetTimerUI();},min*60000);
+    const slot=document.querySelector('.left[data-slot="'+min+'"]');
+    tickId=setInterval(()=>{const left=Math.max(0,timerEnd-Date.now());const m=Math.floor(left/60000),s=Math.floor((left%60000)/1000);
+      if(slot)slot.textContent=m+':'+String(s).padStart(2,'0');},1000);}
+  function resetTimerUI(){document.querySelectorAll('.timer').forEach(t=>t.classList.toggle('active',+t.dataset.min===0));document.querySelectorAll('.left').forEach(el=>el.textContent='');}
+
+  document.getElementById('orb').addEventListener('click',e=>{e.stopPropagation();toggle();});
+  document.getElementById('sounds').addEventListener('click',e=>{const b=e.target.closest('.sound');if(!b)return;setType(b.dataset.type);});
+  document.getElementById('timers').addEventListener('click',e=>{const b=e.target.closest('.timer');if(!b)return;setTimer(+b.dataset.min);});
+
+  /* ---------- Focus mode: home background, colours drifting through the day (no UI) ---------- */
+  const SKY=[
+    [[10,14,36],[24,30,64],[46,40,84],[64,54,104]],        // night
+    [[40,33,78],[110,66,98],[205,118,92],[240,168,112]],   // dawn
+    [[42,86,150],[92,138,188],[165,198,222],[208,226,238]],// midday
+    [[36,27,61],[142,61,94],[221,111,56],[248,184,85]],    // golden hour
+    [[26,20,48],[74,43,85],[150,70,72],[181,86,62]]        // dusk
+  ];
+  const POS=[0,50,78,100], DAY_MS=90000;
+  const sky=document.querySelector('.sky'), water=document.querySelector('.water');
+  let focusOn=false,fInt=null,fStart=0,hintTimer=null;
+  const L=(x,y,t)=>Math.round(x+(y-x)*t);
+  function applyDay(ms){
+    const N=SKY.length, phase=(ms%DAY_MS)/DAY_MS*N;
+    const i=Math.floor(phase)%N, j=(i+1)%N; let f=phase-Math.floor(phase); f=f*f*(3-2*f);
+    const cols=[];
+    for(let k=0;k<4;k++){const A=SKY[i][k],B=SKY[j][k];cols.push([L(A[0],B[0],f),L(A[1],B[1],f),L(A[2],B[2],f)]);}
+    sky.style.background='linear-gradient(180deg,'+cols.map((c,k)=>'rgb('+c[0]+','+c[1]+','+c[2]+') '+POS[k]+'%').join(',')+')';
+    const h=cols[3];
+    water.style.background='linear-gradient(180deg,rgb('+Math.round(h[0]*0.6)+','+Math.round(h[1]*0.6)+','+Math.round(h[2]*0.6)+') 0%,#34203F 42%,#150E26 100%)';
+  }
+  function enterFocus(){focusOn=true;document.body.classList.add('focus');document.body.classList.remove('hidehint');
+    fStart=performance.now();applyDay(0);
+    if(fInt)clearInterval(fInt);fInt=setInterval(()=>applyDay(performance.now()-fStart),120);
+    if(hintTimer)clearTimeout(hintTimer);hintTimer=setTimeout(()=>document.body.classList.add('hidehint'),3500);}
+  function exitFocus(){focusOn=false;document.body.classList.remove('focus');
+    if(fInt){clearInterval(fInt);fInt=null;}
+    sky.style.background='';water.style.background='';}
+  const gbtn=document.getElementById('glowbtn');
+  gbtn.addEventListener('click',e=>{e.stopPropagation();focusOn?exitFocus():enterFocus();});
+  document.querySelector('.scene').addEventListener('click',()=>{if(focusOn)exitFocus();});
+
+  const moon=document.getElementById('moon');
+  moon.addEventListener('click',e=>{e.stopPropagation();document.body.classList.add('dim');});
+  document.getElementById('stage').addEventListener('click',()=>{if(document.body.classList.contains('dim'))document.body.classList.remove('dim');});
+  document.querySelector('.dim-tip').addEventListener('click',()=>document.body.classList.remove('dim'));
+
+  /* ---------- dB meter (approximate, uncalibrated mic estimate) ---------- */
+  let mCtx=null,mAnalyser=null,mStream=null,mRaf=null,mDb=45,CAL=90;
+  try{const v=localStorage.getItem('lull_cal'); if(v!=null)CAL=+v;}catch(e){}
+  const mNum=document.getElementById('mNum'),mZone=document.getElementById('mZone'),
+        mMk=document.getElementById('mMk'),mCalEl=document.getElementById('mCal'),mErr=document.getElementById('mErr');
+  function calLabel(){mCalEl.textContent=(CAL>=0?'+':'')+Math.round(CAL);}
+  calLabel();
+  function renderMeter(db){
+    mNum.textContent=Math.round(db);
+    mMk.style.left=Math.max(0,Math.min(100,(db-25)/60*100))+'%';
+    let col,lab;
+    if(db<=50){col='#5FCB95';lab='Safe for sleep';}
+    else if(db<=60){col='#E6B14E';lab='A little loud';}
+    else{col='#E0705C';lab='Too loud \u2014 lower it';}
+    mZone.textContent=lab;mZone.style.color=col;mNum.style.color=col;
+  }
+  function mLoop(){
+    const buf=new Float32Array(mAnalyser.fftSize);
+    mAnalyser.getFloatTimeDomainData(buf);
+    let sum=0;for(let i=0;i<buf.length;i++)sum+=buf[i]*buf[i];
+    const rms=Math.sqrt(sum/buf.length);
+    let spl=20*Math.log10(rms+1e-8)+CAL;
+    if(!isFinite(spl))spl=20; spl=Math.max(20,Math.min(100,spl));
+    mDb+=(spl-mDb)*0.16; renderMeter(mDb);
+    mRaf=requestAnimationFrame(mLoop);
+  }
+  async function openMeter(){
+    document.body.classList.add('metering'); mErr.textContent='';
+    if(!mStream){
+      try{ mStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,autoGainControl:false,noiseSuppression:false}}); }
+      catch(e){ mErr.textContent='Microphone access is needed to measure sound. Allow it for this site in your browser settings, then reopen.'; return; }
+      mCtx=new (window.AudioContext||window.webkitAudioContext)();
+      const src=mCtx.createMediaStreamSource(mStream);
+      mAnalyser=mCtx.createAnalyser(); mAnalyser.fftSize=2048; src.connect(mAnalyser);
+    }
+    if(mCtx&&mCtx.state==='suspended')mCtx.resume();
+    if(!mRaf)mLoop();
+  }
+  function closeMeter(){
+    document.body.classList.remove('metering');
+    if(mRaf){cancelAnimationFrame(mRaf);mRaf=null;}
+    if(mStream){mStream.getTracks().forEach(t=>t.stop());mStream=null;}
+    if(mCtx){mCtx.close().catch(()=>{});mCtx=null;mAnalyser=null;}
+  }
+  function setCal(d){CAL=Math.max(50,Math.min(120,CAL+d));try{localStorage.setItem('lull_cal',CAL);}catch(e){}calLabel();}
+  document.getElementById('dbbtn').addEventListener('click',openMeter);
+  document.getElementById('mClose').addEventListener('click',closeMeter);
+  document.getElementById('mCalUp').addEventListener('click',()=>setCal(1));
+  document.getElementById('mCalDn').addEventListener('click',()=>setCal(-1));
+
+
+})();
+</script>
+<script>
+// Service worker is for the hosted web PWA only. In the native app everything is
+// bundled and served by Capacitor's local server, so skip it to avoid any
+// stale-cache / local-server interference.
+var _isNative=window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform();
+if('serviceWorker' in navigator && !_isNative){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
